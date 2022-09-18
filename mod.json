@@ -18,10 +18,6 @@
             "ServerCallback": {
                 "After": "Nessie_Music_Player_Init"
             }
-		},
-		{
-			"Path": "/tempfixs/antistuck_util.gnut",
-			"RunOn": "SERVER && MP"
 		}
     ]
 }

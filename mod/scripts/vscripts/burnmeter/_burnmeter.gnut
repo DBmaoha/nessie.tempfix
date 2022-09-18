@@ -13,12 +13,12 @@ global function BurnMeter_GiveRewardDirect
 global function GetBurnCardWeaponSkin
 global function InitBurnMeterPersistentData
 
-global function SetTurretAndSPDisabled
-
 const float PHASE_REWIND_LENGTH = 2.0
 // taken from wraith portal in apex, assuming it's the same as tf2's
-const float PHASE_REWIND_PATH_SNAPSHOT_INTERVAL = 0.1
-const int PHASE_REWIND_MAX_SNAPSHOTS = int( PHASE_REWIND_LENGTH / PHASE_REWIND_PATH_SNAPSHOT_INTERVAL )
+// 0.1 can be too fast for ttf2 scripts
+const float PHASE_REWIND_PATH_SNAPSHOT_INTERVAL = 0.4
+const int PHASE_REWIND_MAX_SNAPSHOTS = int( PHASE_REWIND_LENGTH / PHASE_REWIND_PATH_SNAPSHOT_INTERVAL ) - 1
+const int PHASE_REWIND_DATA_MAX_POSITIONS = int( PHASE_REWIND_LENGTH * 10 ) + 1 // hardcoded but maybe good
 
 const float AMPED_WEAPONS_LENGTH = 30.0
 
@@ -26,65 +26,12 @@ const int MAPHACK_PULSE_COUNT = 4
 const float MAPHACK_PULSE_DELAY = 2.0
 const float MAPHACK_PULSE_LENGTH = 0.5
 
-const float HACKED_SPECTRE_DURATION = 120
-const float PET_REAPER_DURATION = 120
-const array<string> SPECTRE_WEAPONS = ["mp_weapon_hemlok_smg", "mp_weapon_doubletake", "mp_weapon_mastiff"]
-
 struct
 {
 	string forcedGlobalBurncardOverride = ""
 	table<string, int> boostRewardCount
 	table<string, int> boostLimits
-
-	bool disableTurretAndSP = false
 } file
-
-const array<string> MODDED_EXTENDED_MODS = [ 
-	// nessie
-	"nessie_balance",
-	// kraber
-	"ricochet_only_sniper", 
-	"floating_bolt_sniper", 
-	"ricochet_infinite_sniper", 
-	"explosive_sniper", 
-	"phase_sniper", 
-	"heal_sniper", 
-	"stim_sniper", 
-	// arc launcher
-	"smoke_launcher",
-	// all launchers 
-	"rocket_jumper", 
-	// charge rifle
-	"apex_charge_rifle", 
-	// flatline
-	"flak_rifle", 
-	// p2016
-	"gibber_pistol", 
-	// mgl
-	"tripwire_launcher", 
-	"flesh_magnetic",
-	"magnetic_roller",
-	// eva8
-	"twin_slug", 
-	// smart pistol
-	"smart_pistol_unlimited_ammo", 
-	// all weapons
-	"tediore_reload" ]
-
-const array<string> MODDED_SOFTBALL_MODS = [
-	"thermite_softball", 
-	"sonar_softball", 
-	"northstar_softball", 
-	"cluster_softball", 
-	"arcball_softball", 
-	"smoke_softball", 
-	"gravity_softball", 
-	"triplethreat_softball", 
-	"emp_softball", 
-	"error_softball", 
-	"grenade_launcher", 
-	"stickybomb_launcher"
-]
 
 void function BurnMeter_Init()
 {
@@ -105,10 +52,8 @@ void function BurnMeter_Init()
 	BurnReward_GetByRef( "burnmeter_harvester_shield" ).rewardAvailableCallback = PlayerUsesHarvesterShieldBurncard
 	BurnReward_GetByRef( "burnmeter_amped_weapons_permanent" ).rewardAvailableCallback = PlayerUsesPermanentAmpedWeaponsBurncard
 	BurnReward_GetByRef( "burnmeter_instant_battery" ).rewardAvailableCallback = Burnmeter_AmpedBattery
-	//BurnReward_GetByRef( "burnmeter_rodeo_grenade" ).rewardAvailableCallback = PlayerUsesRodeoGrenadeBurncard
-	BurnReward_GetByRef( "burnmeter_rodeo_grenade" ).rewardAvailableCallback = PlayerUsesHackedSpectreBurncard
-	//BurnReward_GetByRef( "burnmeter_nuke_titan" ).rewardAvailableCallback = PlayerUsesNukeTitanBurncard // unused in vanilla, fun though
-	BurnReward_GetByRef( "burnmeter_nuke_titan" ).rewardAvailableCallback = PlayerUsesReaperfallBurncard
+	BurnReward_GetByRef( "burnmeter_rodeo_grenade" ).rewardAvailableCallback = PlayerUsesRodeoGrenadeBurncard
+	BurnReward_GetByRef( "burnmeter_nuke_titan" ).rewardAvailableCallback = PlayerUsesNukeTitanBurncard // unused in vanilla, fun though
 
 	BurnMeter_SetBoostRewardCount( "burnmeter_ticks", 2 )
 
@@ -278,18 +223,18 @@ void function PhaseRewindLifetime( entity player )
 	{
 		PhaseRewindData rewindData
 		rewindData.origin = player.GetOrigin()
-		rewindData.angles = player.GetAngles()
+		rewindData.angles = player.EyeAngles()
 		rewindData.velocity = player.GetVelocity()
 		rewindData.wasInContextAction = player.ContextAction_IsActive()
 		rewindData.wasCrouched = player.IsCrouched()
 
-		if ( player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions.len() >= PHASE_REWIND_MAX_SNAPSHOTS )
+		if ( player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions.len() >= PHASE_REWIND_DATA_MAX_POSITIONS )
 		{
 			// shift all snapshots left
-			for ( int i = 0; i < PHASE_REWIND_MAX_SNAPSHOTS - 1; i++ )
+			for ( int i = 0; i < PHASE_REWIND_DATA_MAX_POSITIONS - 1; i++ )
 				player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions[ i ] = player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions[ i + 1 ]
 
-			player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions[ PHASE_REWIND_MAX_SNAPSHOTS - 1 ] = rewindData
+			player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions[ PHASE_REWIND_DATA_MAX_POSITIONS - 1 ] = rewindData
 		}
 		else
 			player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions.append( rewindData )
@@ -330,20 +275,8 @@ void function UseBurnCardWeaponInCriticalSection( entity weapon, entity ownerPla
 
 void function BurnMeter_GiveRewardDirect( entity player, string itemRef )
 {
-	if( file.disableTurretAndSP )
-	{
-		if(itemRef == "burnmeter_smart_pistol")
-			itemRef = "burnmeter_emergency_battery"
-		if(itemRef == "burnmeter_ap_turret_weapon")
-			itemRef = "burnmeter_emergency_battery"
-	}
 	PlayerInventory_PushInventoryItemByBurnRef( player, itemRef )
 	Remote_CallFunction_Replay( player, "ServerCallback_RewardReadyMessage", player.s.respawnTime )
-}
-
-void function SetTurretAndSPDisabled( bool disabled )
-{
-	file.disableTurretAndSP = disabled
 }
 
 int function GetBurnCardWeaponSkin( entity weapon )
@@ -376,21 +309,8 @@ void function PlayerUsesAmpedWeaponsBurncardThreaded( entity player )
 			{
 				if( IsValid( weapon ) )
 				{
-					if( IsModdedSoftball( weapon ) )
-						weapon.RemoveMod( "burn_mod_modded_softball" )
-					else if( weapon.HasMod("apex_rampage") )
-						weapon.RemoveMod( "burn_mod_apex_rampage" )
-					else if( weapon.HasMod("apex_nessie") )
-						weapon.RemoveMod( "burn_mod_apex_nessie" )
-					else if( IsModdedWeapon( weapon ) )
-						continue
-					else if( weapon.HasMod( "smart_pistol_unlimited_ammo" ) )
-						continue
-					else
-					{
-						foreach ( string mod in GetWeaponBurnMods( weapon.GetWeaponClassName() ) )
-							weapon.RemoveMod( mod )
-					}
+					foreach ( string mod in GetWeaponBurnMods( weapon.GetWeaponClassName() ) )
+						weapon.RemoveMod( mod )
 					
 					weapon.SetScriptFlags0( weapon.GetScriptFlags0() & ~WEAPONFLAG_AMPED )
 				}
@@ -406,60 +326,20 @@ void function PlayerUsesAmpedWeaponsBurncardThreaded( entity player )
 		if( weapon.GetWeaponPrimaryClipCountMax() > 0 )
 			weapon.SetWeaponPrimaryClipCount( weapon.GetWeaponPrimaryClipCountMax() ) // kind of a fix to get ammo to full, cba to give new weapon
 
-
 		weapon.RemoveMod( "silencer" ) // both this and the burnmod will override firing fx, if a second one overrides this we crash
-		if( IsModdedSoftball( weapon ) )
+		foreach ( string mod in GetWeaponBurnMods( weapon.GetWeaponClassName() ) )
 		{
+			// catch incompatibilities just in case
 			try
 			{
-				weapon.AddMod( "burn_mod_modded_softball" )
+				weapon.AddMod( mod )
 			}
 			catch( ex )
 			{
 				weapons.removebyvalue( weapon )
 			}
 		}
-		else if( weapon.HasMod("apex_rampage") )
-		{
-			try
-			{
-				weapon.AddMod( "burn_mod_rampage" )
-			}
-			catch( ex )
-			{
-				weapons.removebyvalue( weapon )
-			}
-		}
-		else if( weapon.HasMod("apex_nessie") )
-		{
-			try
-			{
-				weapon.AddMod( "burn_mod_nessie" )
-			}
-			catch( ex )
-			{
-				weapons.removebyvalue( weapon )
-			}
-		}
-		else if( IsModdedWeapon( weapon ) )
-			continue
-		else if( weapon.HasMod( "smart_pistol_unlimited_ammo" ) )
-			continue
-		else
-		{
-			foreach ( string mod in GetWeaponBurnMods( weapon.GetWeaponClassName() ) )
-			{
-				// catch incompatibilities just in case
-				try
-				{
-					weapon.AddMod( mod )
-				}
-				catch( ex )
-				{
-					weapons.removebyvalue( weapon )
-				}
-			}
-		}
+
 		// needed to display amped weapon time left
 		weapon.SetScriptFlags0( weapon.GetScriptFlags0() | WEAPONFLAG_AMPED )
 		weapon.SetScriptTime0( Time() + AMPED_WEAPONS_LENGTH )
@@ -473,32 +353,6 @@ void function RemoveAmpedWeaponsForTitanPilot( entity player, entity titan )
 	foreach ( entity weapon in player.GetMainWeapons() )
 		foreach ( string mod in GetWeaponBurnMods( weapon.GetWeaponClassName() ) )
 			weapon.RemoveMod( mod )
-}
-
-bool function IsModdedSoftball( entity weapon )
-{
-	if( IsValid(weapon) )
-	{
-		foreach( string hopup in MODDED_SOFTBALL_MODS )
-		{
-			if( weapon.HasMod(hopup) )
-				return true
-		}
-	}
-	return false
-}
-
-bool function IsModdedWeapon( entity weapon )
-{
-	if( IsValid(weapon) )
-	{
-		foreach( string hopup in MODDED_EXTENDED_MODS )
-		{
-			if( weapon.HasMod(hopup) )
-				return true
-		}
-	}
-	return false
 }
 
 void function PlayerUsesSmartPistolBurncard( entity player )
@@ -565,7 +419,7 @@ void function PlayerUsesMaphackBurncardThreaded( entity player )
 
 		IncrementSonarPerTeam( playerTeam )
 
-		if ( IsAlive( player ) )
+		if ( IsAlive( player ) ) // only owner can see the pulse
 			Remote_CallFunction_Replay( player, "ServerCallback_SonarPulseFromPosition", player.GetOrigin().x, player.GetOrigin().y, player.GetOrigin().z, SONAR_GRENADE_RADIUS )
 		
 		foreach ( entity ent in entities )
@@ -628,25 +482,66 @@ void function PlayerUsesPhaseRewindBurncardThreaded( entity player )
 
 	array<PhaseRewindData> positions = clone player.p.burnCardPhaseRewindStruct.phaseRetreatSavedPositions
 
+	array<PhaseRewindData> tempArray
+	int segment = positions.len() / PHASE_REWIND_MAX_SNAPSHOTS
+	for( int i = 0; i < PHASE_REWIND_MAX_SNAPSHOTS; i++ )
+	{
+		if( positions.len() <= segment * i )
+			break
+		tempArray.append( positions[ segment * i ] )
+	}
+	positions = tempArray
+
+	vector startOrigin = player.GetOrigin()
 	ViewConeZero( player )
 	player.HolsterWeapon()
 	player.SetPredictionEnabled( false )
 	PhaseShift( player, 0.0, positions.len() * PHASE_REWIND_PATH_SNAPSHOT_INTERVAL * 1.5 )
+	EmitSoundOnEntityOnlyToPlayer( player, player, "pilot_phaserewind_1p" )
+	EmitSoundOnEntityExceptToPlayer( player, player, "pilot_phaserewind_3p" )
 
 	for ( int i = positions.len() - 1; i > -1; i-- )
 	{
-		mover.NonPhysicsMoveTo( positions[ i ].origin, PHASE_REWIND_PATH_SNAPSHOT_INTERVAL * 2, 0.05, 0.05 )
-		mover.NonPhysicsRotateTo( positions[ i ].angles, PHASE_REWIND_PATH_SNAPSHOT_INTERVAL * 2, 0.05, 0.05 )
+		//print( positions[ i ].origin )
+		// should looks better?
+		float moveTime = PHASE_REWIND_PATH_SNAPSHOT_INTERVAL + 0.1
+		//if( i == 0 )
+		//	moveTime = PHASE_REWIND_PATH_SNAPSHOT_INTERVAL
+		mover.NonPhysicsMoveTo( positions[ i ].origin, moveTime, 0, 0 )
+		mover.NonPhysicsRotateTo( positions[ i ].angles, moveTime, 0, 0 )
 		wait PHASE_REWIND_PATH_SNAPSHOT_INTERVAL
 	}
 	player.SetVelocity( <0, 0, 0> )
+	if( positions[0].wasCrouched )
+		player.SetOrigin( player.GetOrigin() + < 0,0,20 > )
 
 	// fix position after rewind
-	if( PlayerPosInSolid_Nessie( player, player.GetOrigin() ) )
-	{
-		vector TargetPos = FindNearestSafePos_Nessie( player, player.GetOrigin(), 1 )
-		player.SetOrigin( TargetPos )
-	}
+	PutPhaseRewindedPlayerInSafeSpot( player, 1 )
+}
+
+void function PutPhaseRewindedPlayerInSafeSpot( entity player, int severity )
+{
+	vector baseOrigin = player.GetOrigin()
+
+    if( PutEntityInSafeSpot( player, player, null, < baseOrigin.x, baseOrigin.y+severity, baseOrigin.z >, baseOrigin ) )
+        return
+
+    if( PutEntityInSafeSpot( player, player, null, < baseOrigin.x, baseOrigin.y-severity, baseOrigin.z >, baseOrigin ) )
+        return
+ 
+    if( PutEntityInSafeSpot( player, player, null, < baseOrigin.x+severity, baseOrigin.y, baseOrigin.z >, baseOrigin ) )
+        return
+
+	if( PutEntityInSafeSpot( player, player, null, < baseOrigin.x-severity, baseOrigin.y, baseOrigin.z >, baseOrigin ) )
+        return
+
+	if( PutEntityInSafeSpot( player, player, null, < baseOrigin.x, baseOrigin.y, baseOrigin.z+severity >, baseOrigin ) )
+        return
+
+	if( PutEntityInSafeSpot( player, player, null, < baseOrigin.x, baseOrigin.y, baseOrigin.z-severity >, baseOrigin ) )
+        return
+
+    return PutPhaseRewindedPlayerInSafeSpot( player, severity+5 )
 }
 
 void function PlayerUsesNukeTitanBurncard( entity player )
@@ -716,111 +611,9 @@ void function PlayerUsesRodeoGrenadeBurncard( entity player )
 // unused burncard that's mentioned in a few areas and has a validiation function in sh_burnmeter ( BurnMeter_SummonReaperCanUse ), thought it'd be neat to add it
 void function PlayerUsesReaperfallBurncard( entity player )
 {
-	thread PlayerUsesReaperBurncardThreaded( player )
-	/*
 	Point spawnpoint = GetTitanReplacementPoint( player, false )
 	entity reaper = CreateSuperSpectre( player.GetTeam(), spawnpoint.origin, spawnpoint.angles )
 	DispatchSpawn( reaper )
 
 	thread SuperSpectre_WarpFall( reaper )
-	*/
-}
-
-void function PlayerUsesReaperBurncardThreaded( entity player )
-{
-	Point spawnpoint = GetTitanReplacementPoint( player, false )
-	entity spawnNpc = CreateNPC( "npc_super_spectre", player.GetTeam(), spawnpoint.origin, spawnpoint.angles );
-    SetSpawnOption_AISettings( spawnNpc, "npc_super_spectre_burnmeter");
-    DispatchSpawn( spawnNpc );
-	Remote_CallFunction_Replay( player, "ServerCallback_ReplacementTitanSpawnpoint", spawnpoint.origin.x, spawnpoint.origin.y, spawnpoint.origin.z, Time() + 1.5 ) //manually set time because i don't know how to get Reaper's WarpFall impact time
-
-	//int followBehavior = GetDefaultNPCFollowBehavior( spawnNpc )
-	//spawnNpc.InitFollowBehavior( player, followBehavior )
-	//spawnNpc.EnableBehavior( "Follow" )
-	if( IsValid(player) )
-	{
-		spawnNpc.SetBossPlayer( player )
-		spawnNpc.SetOwner( player )
-	}
-	Highlight_SetOwnedHighlight( spawnNpc, "friendly_ai" )
-	//spawnNpc.EnableBehavior( "Follow" )
-	spawnNpc.SetTitle(player.GetPlayerName() + "的死神")
-    thread SuperSpectre_WarpFall( spawnNpc )
-
-	//followbehavior stuff
-	NPCFollowsPlayer( spawnNpc, player )
-
-	thread AfterTimeDestroyNPC( spawnNpc, PET_REAPER_DURATION )
-}
-
-void function PlayerUsesHackedSpectreBurncard( entity player )
-{
-	thread PlayerUsesHackedSpectreBurncardThreaded( player )
-}
-
-void function PlayerUsesHackedSpectreBurncardThreaded( entity player )
-{
-	Point spawnpoint = GetTitanReplacementPoint( player, false )
-	Remote_CallFunction_Replay( player, "ServerCallback_ReplacementTitanSpawnpoint", spawnpoint.origin.x, spawnpoint.origin.y, spawnpoint.origin.z, Time() + 5 )
-	int team = player.GetTeam()
-	entity pod = CreateDropPod( spawnpoint.origin, spawnpoint.angles )
-	string squadName = MakeSquadName( team, UniqueString( "ZiplineTable" ) )
-	array<entity> guys
-
-	SetTeam( pod, team )
-
-	InitFireteamDropPod( pod )
-
-	waitthread LaunchAnimDropPod( pod, "pod_testpath", spawnpoint.origin, spawnpoint.angles )
-
-	for (int i = 0; i < 4 ;i++ ) 
-	{
-	  	entity soldier = CreateNPC( "npc_spectre", team, spawnpoint.origin, spawnpoint.angles )
-
-	    SetTeam( soldier, team )
-	    //soldier.EnableNPCFlag( NPC_ALLOW_PATROL | NPC_ALLOW_INVESTIGATE | NPC_ALLOW_HAND_SIGNALS | NPC_ALLOW_FLEE )
-	    //soldier.AssaultPoint(Vector(-487.158, 646.772, 960.031))
-	    //soldier.AssaultSetFightRadius( 64 )
-		DispatchSpawn( soldier )
-		if( IsValid( player ) )
-		{
-			soldier.SetBossPlayer( player )
-			soldier.SetOwner( player )
-		}
-		Highlight_SetOwnedHighlight( soldier, "friendly_ai" )
-	    SetSquad( soldier, squadName )
-	    ReplaceWeapon( soldier, SPECTRE_WEAPONS[ RandomInt( SPECTRE_WEAPONS.len() ) ], [] )
-	    guys.append( soldier )
-
-	    thread AfterTimeDestroyNPC( soldier, HACKED_SPECTRE_DURATION )
-	}
-
-	ActivateFireteamDropPod( pod, guys )
-
-	foreach ( guy in guys )
-	{
-	    guy.EnableNPCFlag( NPC_ALLOW_PATROL | NPC_ALLOW_INVESTIGATE | NPC_ALLOW_HAND_SIGNALS | NPC_ALLOW_FLEE )
-		guy.AssaultSetGoalRadius( 50 )//set this extremely small so they can follow you around
-	}
-
-	foreach ( guy in guys )
-	{
-		//followbehavior stuff
-		if( IsValid(player) && player.IsPlayer() )
-			NPCFollowsPlayer( guy, player )
-  	}
-}
-
-void function ReplaceWeapon( entity guy, string weapon, array<string> mods )
-{
-	guy.TakeActiveWeapon()
-	guy.GiveWeapon( weapon, mods )
-	guy.SetActiveWeaponByName( weapon )
-}
-
-void function AfterTimeDestroyNPC( entity npc, float delay )
-{
-	wait delay
-	if( IsValid(npc) )
-		npc.Dissolve( ENTITY_DISSOLVE_CORE, Vector( 0, 0, 0 ), 500 )
 }
