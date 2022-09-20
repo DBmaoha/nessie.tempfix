@@ -563,6 +563,8 @@ void function EvacDropshipDamaged( entity evacShip, var damageInfo )
 	int damageSourceID = DamageInfo_GetDamageSourceIdentifier( damageInfo )
 	if( damageSourceID == damagedef_nuclear_core )
 		DamageInfo_SetDamage( damageInfo, DamageInfo_GetDamage( damageInfo ) * EVAC_SHIP_DAMAGE_MULTIPLIER_AGAINST_NUCLEAR_CORE )
+        if( damageSourceID == eDamageSourceId.titan_step )
+		DamageInfo_SetDamage( damageInfo, 0 )
 }
 
 void function WarpInEffectEvacShip( entity dropship )
