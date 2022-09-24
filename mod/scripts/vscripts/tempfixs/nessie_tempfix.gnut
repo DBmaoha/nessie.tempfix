@@ -15,7 +15,7 @@ void function OnClientConnected( entity player )
 void function OnPlayerKilled( entity victim, entity attacker, var damageInfo )
 {
 	PlayerDeathChatter( victim, attacker )
-    SpeciallKillingDialogue( attacker, damageInfo )
+    SpeciallKillingDialogue( victim, attacker, damageInfo )
 	StopSoundOnEntity( victim, "3p_zipline_loop" ) // fuck this
 }
 
@@ -50,14 +50,14 @@ void function PlayerDeathChatter( entity victim, entity attacker )
     thread KilledPilotChatterThink( attacker )
 }
 
-void function SpeciallKillingDialogue( entity victim, entity attaker, var damageInfo )
+void function SpeciallKillingDialogue( entity victim, entity attacker, var damageInfo )
 {
     if( victim == attacker )
         return
     if( DamageInfo_GetCustomDamageType( damageInfo ) & DF_HEADSHOT )
-        PlayFactionDialogueToPlayer( "kc_bullseye", attaker )
+        PlayFactionDialogueToPlayer( "kc_bullseye", attacker )
     if( DamageInfo_GetDamageSourceIdentifier( damageInfo ) == damagedef_titan_step )
-        PlayFactionDialogueToPlayer( "kc_hitandrun", attaker )
+        PlayFactionDialogueToPlayer( "kc_hitandrun", attacker )
 }
 
 void function DamagedPlayerChatterThink( entity attacker, entity victim )
