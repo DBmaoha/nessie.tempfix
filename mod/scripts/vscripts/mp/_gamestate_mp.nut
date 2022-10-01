@@ -900,7 +900,7 @@ void function SetWinner( int team, string winningReason = "", string losingReaso
 			if ( team != TEAM_UNASSIGNED )
 			{
 				// round limit reached!
-				if( GameRules_GetTeamScore( winningTeam ) == GameMode_GetRoundScoreLimit( GAMETYPE ) )
+				if( GameRules_GetTeamScore( team ) == GameMode_GetRoundScoreLimit( GAMETYPE ) )
 				{
 					file.announceRoundWinnerWinningSubstr = GetStringID( "#GAMEMODE_ROUND_LIMIT_REACHED" )
 					file.announceRoundWinnerLosingSubstr = GetStringID( "#GAMEMODE_ROUND_LIMIT_REACHED" )
