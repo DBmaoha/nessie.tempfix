@@ -389,7 +389,7 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 			if( file.forcedRespawn && methodOfDeath != damagedef_despawn ) // check for spectator mod
 			{
 				float waitBeforeRespawn = 0.0
-				if( !shouldDoReplay )
+				if( !shouldDoReplay || respawnDelay >= 3.0 ) // doing this so player can respawn as titan in 
 					waitBeforeRespawn = 3.0
 				thread ForcedRespawnThink( player, waitBeforeRespawn )
 			}
@@ -475,11 +475,17 @@ void function DecideRespawnPlayer( entity player )
 
 void function RespawnAsPilot( entity player )
 {
+	if( IsAlive( player ) )
+		return
+
 	player.RespawnPlayer( FindSpawnPoint( player, false, ( ShouldStartSpawn( player ) || Flag( "ForceStartSpawn" ) ) && !IsFFAGame() ) )
 }
 
 void function RespawnAsTitan( entity player, bool manualPosition = false )
 {
+	if( IsAlive( player ) )
+		return
+
 	player.Signal( "PlayerRespawnStarted" )
 
 	player.isSpawning = true
