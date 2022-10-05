@@ -183,8 +183,40 @@ void function CodeCallback_OnClientConnectionCompleted( entity player )
 			else // spawn as pilot
 				RespawnAsPilot( player )
 		}
-		else
-			thread PlayerBecomesSpectator( player )
+		else // may not be useful, just want to make dedicated servers better
+		{
+			bool shouldDoLateSpawn = false
+			float endTime
+			float gameTime
+			if ( IsRoundBased() )
+			{
+				endTime = expect float( GetServerVar( "roundEndTime" ) )
+				gameTime = GameMode_GetRoundTimeLimit( GAMETYPE ) * 60
+			}
+			else
+			{
+				endTime = expect float( GetServerVar( "gameEndTime" ) )
+				gameTime = float( GameMode_GetTimeLimit( GAMETYPE ) ) * 60
+			}
+
+			// do this so player don't have to wait so long till round end
+			if( !RespawnsEnabled() )
+				shouldDoLateSpawn = true
+			if( GetPlayerArrayOfTeam( player.GetTeam() ).len() <= 1 )
+				shouldDoLateSpawn = true
+			else if( endTime - Time() < gameTime * 0.2 ) // early joiner can still be in elimination mode
+				shouldDoLateSpawn = true
+
+			if( shouldDoLateSpawn )
+			{
+				if ( Riff_SpawnAsTitan() == 1 )	// spawn as titan
+					thread RespawnAsTitan( player )
+				else // spawn as pilot
+					RespawnAsPilot( player )
+			}
+			else
+				thread PlayerBecomesSpectator( player )
+		}
 	}
 }
 
@@ -339,6 +371,9 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 	wait deathcamLength
 	
 	// use info_intermission camera after deathcam, if it exists
+	if( shouldDoReplay ) // if not doing replay, player's camera should be at their death location.
+		SetPlayerCameraToIntermissionCam( player )
+	/*
 	if ( file.intermissionCamera != null )
 	{
 		if( shouldDoReplay ) // if not doing replay, player's camera should be at their death location.
@@ -348,9 +383,10 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 			player.ClearParent() // sometimes they're still parented, do a defensive fix
 			if( !IsValid( player.GetParent() ) )
 				player.StartObserverMode( OBS_MODE_STATIC_LOCKED )
+			player.SetObserverTarget( null )
 		}
-		player.SetObserverTarget( null )
 	}
+	*/
 
 	// hack: double check if killcams are enabled and valid here in case gamestate has changed this
 	shouldDoReplay = shouldDoReplay && Replay_IsEnabled() && KillcamsEnabled() && IsValid( attacker )
@@ -384,14 +420,16 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 		
 		wait respawnDelay
 
-		if( IsValid( attacker ) )
+		if( IsValid( player ) )
 		{
 			if( file.forcedRespawn && methodOfDeath != damagedef_despawn ) // check for spectator mod
 			{
 				float waitBeforeRespawn = 0.0
-				if( !shouldDoReplay || respawnDelay >= 3.0 ) // doing this so player can respawn as titan in 
-					waitBeforeRespawn = 3.0
+				//if( !shouldDoReplay || respawnDelay >= 3.0 ) // doing this so player can respawn as titan in some modes, but vanilla don't features this lol
+				//	waitBeforeRespawn = 3.0
 				thread ForcedRespawnThink( player, waitBeforeRespawn )
+				if( !shouldDoReplay ) // if not doing replay, set player's camera to intermissionCam
+					SetPlayerCameraToIntermissionCam( player )
 			}
 		}
 
@@ -410,6 +448,19 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 			player.WaitSignal( "KillCamOver" )
 		
 		thread PlayerBecomesSpectator( player )
+	}
+}
+
+void function SetPlayerCameraToIntermissionCam( entity player )
+{
+	if ( file.intermissionCamera != null )
+	{
+		player.SetObserverModeStaticPosition( file.intermissionCamera.GetOrigin() )
+		player.SetObserverModeStaticAngles( file.intermissionCamera.GetAngles() )
+		player.ClearParent() // sometimes they're still parented, do a defensive fix
+		if( !IsValid( player.GetParent() ) )
+			player.StartObserverMode( OBS_MODE_STATIC_LOCKED )
+		player.SetObserverTarget( null )
 	}
 }
 
@@ -556,8 +607,6 @@ void function RespawnAsTitan( entity player, bool manualPosition = false )
 	else
 		print( "batteryContainer is not a valid entity in RespawnAsTitan(). Skipping PilotBecomesTitan()." )
 }
-
-
 
 void function TryGameModeAnnouncement( entity player ) // only putting this here because it's here in gametype_sp lol
 {
