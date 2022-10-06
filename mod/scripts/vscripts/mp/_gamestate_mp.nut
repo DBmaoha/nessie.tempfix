@@ -196,7 +196,7 @@ void function GameStateEnter_PickLoadout_Threaded()
 void function GameStateEnter_Prematch()
 {
 	if( GetPlayerArray().len() == 0 ) // server empty again, wait until someone join
-		SetGameState( eGameState.WaitForPlayers )
+		SetGameState( eGameState.WaitingForPlayers )
 
 	int timeLimit = GameMode_GetTimeLimit( GAMETYPE ) * 60
 	if ( file.switchSidesBased )
@@ -1082,15 +1082,16 @@ void function PlayScoreEventFactionDialogue( string winningLarge, string losingL
 		winningTeam = TEAM_IMC
 		losingTeam = TEAM_MILITIA
 	}
-	if( GameRules_GetTeamScore( TEAM_MILITIA ) > GameRules_GetTeamScore( TEAM_IMC ) )
+	else if( GameRules_GetTeamScore( TEAM_MILITIA ) > GameRules_GetTeamScore( TEAM_IMC ) )
 	{
 		winningTeam = TEAM_MILITIA
 		losingTeam = TEAM_IMC
 	}
-	if( GameRules_GetTeamScore( TEAM_MILITIA ) == GameRules_GetTeamScore( TEAM_IMC ) )
+	else if( GameRules_GetTeamScore( TEAM_MILITIA ) == GameRules_GetTeamScore( TEAM_IMC ) )
 	{
 		scoreTied = true
 	}
+	
 	if( scoreTied )
 	{
 		if( tied != "" )
@@ -1107,7 +1108,7 @@ void function PlayScoreEventFactionDialogue( string winningLarge, string losingL
 	else if( GameRules_GetTeamScore( winningTeam ) - GameRules_GetTeamScore( losingTeam ) <= totalScore * 0.2 )
 	{
 		PlayFactionDialogueToTeam( "scoring_" + winningClose, winningTeam )
-		PlayFactionDialogueToTeam( "scoring_" + winningClose, losingTeam )
+		PlayFactionDialogueToTeam( "scoring_" + losingLarge, losingTeam )
 	}
 	else
 	{
