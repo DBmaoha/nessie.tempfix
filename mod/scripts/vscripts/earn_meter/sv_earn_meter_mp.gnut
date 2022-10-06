@@ -177,13 +177,6 @@ void function EarnMeterMP_PlayerLifeThink( entity player )
 	}
 }
 
-bool function ShouldDoTitanSoonAnnouncement( entity player )
-{
-	if( EarnMeterMP_IsTitanEarnGametype() && PlayerEarnMeter_GetOwnedFrac( player ) >= 0.8 && !IsTitanAvailable( player ) && !player.IsTitan() )
-		return true
-	return false
-}
-
 void function TryTitanSoonAnnouncement( entity player )
 {
 	wait 0.2
@@ -194,6 +187,13 @@ void function TryTitanSoonAnnouncement( entity player )
 		if( ShouldDoTitanSoonAnnouncement( player ) )
 			PlayFactionDialogueToPlayer( "mp_titanSoon", player )
 	}
+}
+
+bool function ShouldDoTitanSoonAnnouncement( entity player )
+{
+	if( EarnMeterMP_IsTitanEarnGametype() && PlayerEarnMeter_GetOwnedFrac( player ) >= 0.8 && !IsTitanAvailable( player ) && !player.IsTitan() )
+		return true
+	return false
 }
 
 void function EarnMeterMP_BoostEarned( entity player )
