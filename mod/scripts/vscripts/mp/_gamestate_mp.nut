@@ -349,7 +349,7 @@ void function GameStateEnter_WinnerDetermined_Threaded()
 	bool doReplay = Replay_IsEnabled() && IsRoundWinningKillReplayEnabled() && IsValid( replayAttacker ) && !ClassicMP_ShouldRunEpilogue()
 				 && Time() - file.roundWinningKillReplayTime <= ROUND_WINNING_KILL_REPLAY_LENGTH_OF_REPLAY && winningTeam != TEAM_UNASSIGNED
  	
-	float replayLength = 2.0 // extra delay if no replay
+	float replayLength = 2.0 
 	if ( doReplay )
 	{
 		bool killcamsWereEnabled = KillcamsEnabled()
@@ -359,6 +359,9 @@ void function GameStateEnter_WinnerDetermined_Threaded()
 		replayLength = ROUND_WINNING_KILL_REPLAY_LENGTH_OF_REPLAY
 		if ( "respawnTime" in replayAttacker.s && Time() - replayAttacker.s.respawnTime < replayLength )
 			replayLength += Time() - expect float ( replayAttacker.s.respawnTime )
+
+		if( replayLength <= 0 ) // defensive fix
+			replayLength = 2.0 // extra delay
 		
 		SetServerVar( "roundWinningKillReplayEntHealthFrac", file.roundWinningKillReplayHealthFrac )
 		
