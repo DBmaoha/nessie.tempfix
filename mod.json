@@ -6,13 +6,6 @@
 
     "Scripts": [
 		{
-			"Path": "/tempfixs/nessie_tempfix.gnut",
-			"RunOn": "SERVER && MP",
-			"ServerCallback":{
-				"After": "Nessie_TempFix_Init"
-			}
-		},
-		{
 			"Path": "/tempfixs/music_player.gnut",
 			"RunOn": "SERVER && MP",
             "ServerCallback": {
