@@ -678,30 +678,20 @@ function RunDropshipDropoff( CallinData Table )
 			dropship.SetBossPlayer( owner )
 	}
 
-	local dropshipSound = ""
-
-	if ( team == TEAM_IMC || team == TEAM_MILITIA )
-	{
-        dropshipSound = GetTeamDropshipSound( team, animation )
-	    if ( Table.customSnd != "" )
-		    dropshipSound = Table.customSnd
-	}
-	else
-	{
-		printt("set model/sound to default(IMC)")
-	}
+	local dropshipSound = GetTeamDropshipSound( team, animation )
+	if ( Table.customSnd != "" )
+		dropshipSound = Table.customSnd
 
 	OnThreadEnd(
 		function() : ( dropship, ref, Table, dropshipSound )
 		{
 			ref.Destroy()
 			if ( IsValid( dropship ) )
-			{
-				if( dropshipSound != "" )
-					StopSoundOnEntity( dropship, dropshipSound )
-			}
+				StopSoundOnEntity( dropship, dropshipSound )
 			if ( IsAlive( dropship ) )
+			{
 				dropship.Destroy()
+			}
 
 			Signal( Table, "OnDropoff", { guys = null } )
 		}

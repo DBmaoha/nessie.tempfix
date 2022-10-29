@@ -21,7 +21,6 @@ struct
 	array<entity> hurtTriggers = []
 	bool functionref( entity, entity, var ) isProtectedFromFriendlyFire
 	table< entity, OutOfBoundsDataStruct > outOfBoundsTable
-	bool friendlyFireOn = false // modified
 } file
 
 function BaseGametype_Init()
@@ -52,8 +51,6 @@ function BaseGametype_Init()
 	{
 		file.isProtectedFromFriendlyFire = IsProtectedFromFriendlyFire_SP
 	}
-	else if( file.friendlyFireOn ) // modified
-		file.isProtectedFromFriendlyFire = NotProtectedFromFriendlyFire
 	else
 	{
 		file.isProtectedFromFriendlyFire = IsProtectedFromFriendlyFire_MP
@@ -80,19 +77,6 @@ function BaseGametype_Init()
 	BaseGametype_Init_MPSP()
 
 	AddCallback_OnTitanBecomesPilot( OnTitanBecomesPilot_OutOfBoundsCheck )
-}
-
-// modified
-void function SetFriendlyFireOn( bool state )
-{
-	file.friendlyFireOn = state
-}
-
-bool function NotProtectedFromFriendlyFire( entity attacker, entity ent, var damageInfo )
-{
-	// no any protection
-
-	return false
 }
 
 void function BaseGametypeEntitiesDidLoad()
@@ -298,28 +282,12 @@ bool function IsProtectedFromFriendlyFire_SP( entity attacker, entity ent, var d
 	return false
 }
 
-bool function DamageIgnoresFriendlyFire( damageInfo ) // can add friendly fire here!
+bool function DamageIgnoresFriendlyFire( damageInfo )
 {
 	if ( DamageInfo_GetCustomDamageType( damageInfo ) & DF_DOOMED_HEALTH_LOSS )
 		return true
 
 	int damageSourceID = DamageInfo_GetDamageSourceIdentifier( damageInfo )
-	bool shouldDoFriendlyFire = false
-	entity weapon = DamageInfo_GetWeapon( damageInfo )
-	if( IsValid( weapon ) )
-	{
-		if( weapon.HasMod( "friendlyfire_weapon" ) ) // for buff friendly players or killing them
-			shouldDoFriendlyFire = true
-	}
-	entity inflictor = DamageInfo_GetInflictor( damageInfo )
-	if( IsValid( inflictor ) )
-	{
-		if( inflictor.IsProjectile() )
-		{
-			if( inflictor.ProjectileGetMods().contains( "friendlyfire_weapon" ) )
-				shouldDoFriendlyFire = true
-		}
-	}
 
 	switch ( damageSourceID )
 	{
@@ -330,8 +298,7 @@ bool function DamageIgnoresFriendlyFire( damageInfo ) // can add friendly fire h
 			return true
 	}
 
-	//return false
-	return shouldDoFriendlyFire
+	return false
 }
 
 bool function ScriptCallback_ShouldEntTakeDamage( entity ent, damageInfo )
@@ -778,7 +745,7 @@ bool function PlayerOrNPCKilled( entity ent, var damageInfo )
 		//For example: In script immediately above this we change the attacker to get the player behind the kill, e.g. owner of a pet titan, etc. Bunch of registered callbacks depends on this.
 		foreach( callbackFunc in svGlobal.onPlayerKilledCallbacks )
 			callbackFunc( ent, attacker, damageInfo )
-		if( attacker.IsPlayer() && !attacker.IsTitan() )
+		if( attacker != ent && attacker.IsPlayer() && !attacker.IsTitan() )
 		{
 			#if BATTLECHATTER_ENABLED
 				// killing pilot dialogues
@@ -842,12 +809,6 @@ bool function PlayerOrNPCKilled( entity ent, var damageInfo )
 	{
 		if ( ent.GetPersistentVar( "respawnKillInfected" ) && !attacker.GetPersistentVar( "respawnKillInfected" ) )
 			attacker.SetPersistentVar( "respawnKillInfected", true )
-
-		// special method of killing dialogues
-		if( DamageInfo_GetCustomDamageType( damageInfo ) & DF_HEADSHOT )
-			PlayFactionDialogueToPlayer( "kc_bullseye", attacker )
-		if( damageSourceID == damagedef_titan_step )
-			PlayFactionDialogueToPlayer( "kc_hitandrun", attacker )
 	}
 
 	if ( gamePlayingOrSuddenDeath )
@@ -1484,32 +1445,6 @@ void function CodeCallback_WeaponFireInCloak( entity player )
 		//player.SetCloakFlicker( 1.0, 2.0 )
 
 		DisableCloak( player, 0.5 )
-		entity cloakWeapon
-		int offhandSlot
-		for ( int i = 0; i <= OFFHAND_MELEE; i++ ) // OFFHAND_MELEE is the largest
-		{
-			entity nowWeapon = player.GetOffhandWeapon( i )
-			if( IsValid( nowWeapon ))
-			{
-				if( nowWeapon.GetWeaponClassName() == "mp_ability_cloak" )
-				{
-					cloakWeapon = nowWeapon
-					offhandSlot = i
-				}
-			}
-		}
-		if( IsValid( cloakWeapon ) )
-		{
-			array<string> mods = cloakWeapon.GetMods()
-			player.TakeWeapon( "mp_ability_cloak" ) // not using TakeWeaponNow() to fit vanilla behavior
-			player.GiveOffhandWeapon( "mp_ability_cloak", offhandSlot, mods )
-			cloakWeapon = player.GetOffhandWeapon( offhandSlot )
-			cloakWeapon.SetWeaponPrimaryClipCountAbsolute( 0 )
-		}
-
-		//printt( "weapon", weapon.GetWeaponClassName() )
-		// JFS; need code feature to properly reset next attack time/cooldown stuff
-		/*
 		entity weapon = player.GetOffhandWeapon( OFFHAND_LEFT )
 		//printt( "weapon", weapon.GetWeaponClassName() )
 		// JFS; need code feature to properly reset next attack time/cooldown stuff
@@ -1520,7 +1455,6 @@ void function CodeCallback_WeaponFireInCloak( entity player )
 			weapon = player.GetOffhandWeapon( OFFHAND_LEFT )
 			weapon.SetWeaponPrimaryClipCountAbsolute( 0 )
 		}
-		*/
 	}
 	else
 	{

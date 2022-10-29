@@ -47,7 +47,7 @@ void function GamemodeCP_Init()
 	ScoreEvent_SetEarnMeterValues("KillPilot",0.1,0.12)
 	ScoreEvent_SetEarnMeterValues("KillTitan",0,0)
 	ScoreEvent_SetEarnMeterValues("TitanKillTitan",0,0)
-	ScoreEvent_SetEarnMeterValues("PilotBatteryStolen",0,35)
+	ScoreEvent_SetEarnMeterValues("PilotBatteryStolen",0,0.35)
 	ScoreEvent_SetEarnMeterValues("Headshot",0,0.02)
 	ScoreEvent_SetEarnMeterValues("FirstStrike",0,0.05)
 
@@ -110,12 +110,12 @@ void function GamemodeCP_OnPlayerKilled(entity victim, entity attacker, var dama
 		{
 			if(victimCP.hardpoint.GetTeam()==attacker.GetTeam())
 			{
-				AddPlayerScore( attacker , "HardpointDefense", attacker )
+				AddPlayerScore( attacker , "HardpointDefense", victim )
 				attacker.AddToPlayerGameStat(PGS_DEFENSE_SCORE,POINTVALUE_HARDPOINT_DEFENSE)
 			}
 			else if((victimCP.hardpoint.GetTeam()==victim.GetTeam())||(GetHardpointCappingTeam(victimCP)==victim.GetTeam()))
 			{
-				AddPlayerScore( attacker, "HardpointAssault", attacker )
+				AddPlayerScore( attacker, "HardpointAssault", victim )
 				attacker.AddToPlayerGameStat(PGS_ASSAULT_SCORE,POINTVALUE_HARDPOINT_ASSAULT)
 			}
 		}
@@ -125,18 +125,18 @@ void function GamemodeCP_OnPlayerKilled(entity victim, entity attacker, var dama
 
 		if(Distance(victim.GetOrigin(),attacker.GetOrigin())>=1875)//1875 inches(units) are 47.625 meters
 		{
-			AddPlayerScore( attacker , "HardpointSnipe", attacker )
+			AddPlayerScore( attacker , "HardpointSnipe", victim )
 			attacker.AddToPlayerGameStat(PGS_ASSAULT_SCORE,POINTVALUE_HARDPOINT_SNIPE)
 		}
 		else{
-			AddPlayerScore( attacker , "HardpointSiege", attacker )
+			AddPlayerScore( attacker , "HardpointSiege", victim )
 			attacker.AddToPlayerGameStat(PGS_ASSAULT_SCORE,POINTVALUE_HARDPOINT_SIEGE)
 		}
 	}
 	else if(attackerCP.hardpoint!=null)//Perimeter Defense
 	{
 		if(attackerCP.hardpoint.GetTeam()==attacker.GetTeam())
-			AddPlayerScore( attacker , "HardpointPerimeterDefense", attacker)
+			AddPlayerScore( attacker , "HardpointPerimeterDefense", victim)
 			attacker.AddToPlayerGameStat(PGS_DEFENSE_SCORE,POINTVALUE_HARDPOINT_PERIMETER_DEFENSE)
 	}
 
