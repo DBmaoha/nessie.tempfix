@@ -111,14 +111,14 @@ void function AiGameModes_SpawnDropPod( vector pos, vector rot, int team, string
 
 void function AiGameModes_SpawnReaper( vector pos, vector rot, int team, string aiSettings = "", void functionref( entity reaper ) reaperHandler = null )
 {
-	// nessie fix
 	thread Reaper_Spawnpoint( pos, team, 11.2 )
 
 	wait 10
+	// spawn reapers right before it warpfalls, or round_end clean up will crash the game
 	entity reaper = CreateSuperSpectre( team, pos, rot )
 	// reaper highlight
 	Highlight_SetFriendlyHighlight( reaper, "sp_enemy_pilot" )
-	reaper.Highlight_SetParam( 1, 0, < 2,2,2 > )
+	reaper.Highlight_SetParam( 1, 0, < 1,1,1 > )
 	Highlight_SetEnemyHighlight( reaper, "enemy_titan" )
 
 	SetSpawnOption_Titanfall( reaper )
@@ -156,7 +156,7 @@ void function Reaper_Spawnpoint( vector origin, int team, float impactTime, bool
 	EffectSetControlPointVector( effectEnemy, 1, < 255,99,0 > )
 	effectEnemy.kv.VisibilityFlags = ENTITY_VISIBLE_TO_ENEMY
 	targetEffects.append( effectEnemy )
-
+	
 	wait impactTime
 
 	foreach( entity targetEffect in targetEffects )
