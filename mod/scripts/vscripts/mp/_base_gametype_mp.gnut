@@ -15,7 +15,9 @@ global function KillcamsEnabled
 global function SetPlayerDeathsHidden
 global function TrackTitanDamageInPlayerGameStat
 
+// I want my game to have this
 global function SetPlayerRespawnForced
+global function SetPlayerCameraToIntermissionCam
 
 global function ShouldEntTakeDamage_SPMP
 global function GetTitanBuildTime
@@ -29,6 +31,7 @@ struct {
 	entity intermissionCamera
 	array<entity> specCams
 	
+	// modified
 	bool forcedRespawn = true
 	array<string> lateSpawnedPlayerUIDs = []
 } file
@@ -194,6 +197,25 @@ void function CodeCallback_OnClientConnectionCompleted( entity player )
 				shouldDoLateSpawn = true
 			else if( !file.lateSpawnedPlayerUIDs.contains( player.GetUID() ) ) // avoid multiple late spawns by disconnecting
 				shouldDoLateSpawn = true
+			/*
+			float endTime
+			float gameTime
+			if ( IsRoundBased() )
+			{
+				endTime = expect float( GetServerVar( "roundEndTime" ) )
+				gameTime = GameMode_GetRoundTimeLimit( GAMETYPE ) * 60
+			}
+			else
+			{
+				endTime = expect float( GetServerVar( "gameEndTime" ) )
+				gameTime = float( GameMode_GetTimeLimit( GAMETYPE ) ) * 60
+			}
+			
+			else if( GetPlayerArrayOfTeam( player.GetTeam() ).len() > 1 )
+				shouldDoLateSpawn = false
+			else if( endTime - Time() < gameTime * 0.75 ) // early joiner can still be in elimination mode
+				shouldDoLateSpawn = false
+			*/
 
 			// do this so player don't have to wait so long till round end
 			if( shouldDoLateSpawn )
@@ -250,13 +272,13 @@ void function CodeCallback_OnPlayerRespawned( entity player )
 {
 	SetHumanRagdollImpactTable( player )
 	
+	player.s.inGracePeriod = true // defensive fix
 	player.s.respawnCount++
 	player.s.respawnTime = Time()
 	ClearRecentDamageHistory( player )
 	
 	player.Signal( "OnRespawned" ) // kill any postdeaththreads that could be running
 	
-	player.s.inGracePeriod = true // defensive fix
 	Loadouts_TryGivePilotLoadout( player )
 	GracePeriodThink( player ) // grace period done here
 	//player.SetPredictionEnabled( true ) doesn't seem needed, as native code seems to set this
@@ -279,7 +301,6 @@ void function GracePeriodThink( entity player )
 void function GracePeriodThink_Threaded( entity player )
 {
 	player.EndSignal( "OnDestroy" )
-
 	player.EndSignal( "OnPrimaryAttack" )
 	player.EndSignal( "OnDeath" )
 
@@ -298,9 +319,10 @@ void function GracePeriodThink_Threaded( entity player )
 	)
 
 	float countingTime
-	while( countingTime <= CLASS_CHANGE_GRACE_PERIOD )
+	while( countingTime <= CLASS_CHANGE_GRACE_PERIOD ) // to get exact time
 	{
 		wait 0.2
+		// in dropship
 		if( player.GetParent() != null && ( HasCinematicFlag( player, CE_FLAG_INTRO ) || HasCinematicFlag( player, CE_FLAG_CLASSIC_MP_SPAWNING ) || HasCinematicFlag( player, CE_FLAG_WAVE_SPAWNING ) ) )
 			continue
 
@@ -329,7 +351,7 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 
 	player.p.deathOrigin = player.GetOrigin()
 	player.p.deathAngles = player.GetAngles()
-	
+
 	player.s.inPostDeath = true
 	player.s.inGracePeriod = true // make sure player always in GracePeriod after respawn
 	player.s.respawnSelectionDone = false
@@ -372,7 +394,7 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 			{
 				alreadyAssisted[attackerInfo.attacker.GetEncodedEHandle()] <- true
 				Remote_CallFunction_NonReplay( attackerInfo.attacker, "ServerCallback_SetAssistInformation", attackerInfo.damageSourceId, attacker.GetEncodedEHandle(), player.GetEncodedEHandle(), attackerInfo.time ) 
-				AddPlayerScore( attackerInfo.attacker, "PilotAssist", attackerInfo.attacker )
+				AddPlayerScore( attackerInfo.attacker, "PilotAssist", player )
 				attackerInfo.attacker.AddToPlayerGameStat( PGS_ASSISTS, 1 )
 			}
 		}
@@ -412,9 +434,26 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 
 	float deathcamLength = GetDeathCamLength( player )
 	wait deathcamLength
+	
+	/*
+	if ( file.intermissionCamera != null )
+	{
+		if( shouldDoReplay ) // if not doing replay, player's camera should be at their death location.
+		{
+			player.SetObserverModeStaticPosition( file.intermissionCamera.GetOrigin() )
+			player.SetObserverModeStaticAngles( file.intermissionCamera.GetAngles() )
+			player.ClearParent() // sometimes they're still parented, do a defensive fix
+			if( !IsValid( player.GetParent() ) )
+				player.StartObserverMode( OBS_MODE_STATIC_LOCKED )
+			player.SetObserverTarget( null )
+		}
+	}
+	*/
 
 	// hack: double check if killcams are enabled and valid here in case gamestate has changed this
-	shouldDoReplay = shouldDoReplay && Replay_IsEnabled() && KillcamsEnabled() && IsValid( attacker )
+	//shouldDoReplay = shouldDoReplay && Replay_IsEnabled() && KillcamsEnabled() && IsValid( attacker )
+	// doing a custom check for bleeding out
+	shouldDoReplay = shouldDoReplay && Replay_IsEnabled() && KillcamsEnabled() && IsValid( attacker ) && methodOfDeath != eDamageSourceId.bleedout
 	// quick note: in cases where player.Die() is called: e.g. for round ends, player == attacker
 	if ( shouldDoReplay ) 
 	{	
@@ -448,6 +487,7 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 		if( file.forcedRespawn && methodOfDeath != damagedef_despawn ) // check for spectator mod
 		{
 			float waitBeforeRespawn = 0.0
+			//if( !shouldDoReplay || respawnDelay >= 3.0 ) // doing this so player can respawn as titan in some modes, but vanilla don't features this lol
 			if( !shouldDoReplay )
 			{
 				waitBeforeRespawn = 3.0 - respawnDelay
@@ -484,10 +524,12 @@ void function SetPlayerCameraToIntermissionCam( entity player, float delay = 0 )
 		player.EndSignal( "OnDestroy" )
 		player.EndSignal( "OnDeath" )
 		player.EndSignal( "RespawnMe" )
+		//print( "Waiting " + string( delay ) + " s before setting camera" )
 		wait delay
 	}
 	if ( file.intermissionCamera != null )
 	{
+		//print( "Setting player camera to intermissionCam" )
 		player.SetObserverModeStaticPosition( file.intermissionCamera.GetOrigin() )
 		player.SetObserverModeStaticAngles( file.intermissionCamera.GetAngles() )
 		player.ClearParent() // sometimes they're still parented, do a defensive fix

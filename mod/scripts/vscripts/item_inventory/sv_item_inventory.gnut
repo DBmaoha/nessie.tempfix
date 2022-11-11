@@ -19,11 +19,21 @@ void function Sv_ItemInventory_Init()
 {
 	AddCallback_OnClientConnected( Sv_ItemInventory_OnClientConnected )
 	AddCallback_OnPlayerGetsNewPilotLoadout( Sv_ItemInventory_OnPlayerGetsNewPilotLoadout )
+	AddCallback_GameStateEnter( eGameState.Prematch, PrematchClearInventory )
 }
 
 void function Sv_ItemInventory_OnClientConnected( entity player )
 {
 	file.playerInventoryStacks[ player ] <- []
+}
+
+void function PrematchClearInventory()// vanilla behavior
+{
+	foreach( entity player in GetPlayerArray() )
+	{
+		player.TakeOffhandWeapon( OFFHAND_INVENTORY )
+		file.playerInventoryStacks[ player ] = []
+	}
 }
 
 void function Sv_ItemInventory_OnPlayerGetsNewPilotLoadout( entity player, PilotLoadoutDef newPilotLoadout )
@@ -68,6 +78,7 @@ int function PlayerInventory_CountBurnRef( entity player, string burnRef )
 
 void function PlayerInventory_TakeInventoryItem( entity player )
 {
+	player.EndSignal( "OnDestroy" )
 	entity preexistingWeapon = player.GetOffhandWeapon( OFFHAND_INVENTORY )
 
 	if( !IsValid( preexistingWeapon ) )
@@ -84,6 +95,8 @@ void function PlayerInventory_TakeInventoryItem( entity player )
 
 void function PlayerInventory_GiveInventoryItem( entity player, InventoryItem inventoryItem )
 {
+	player.EndSignal( "OnDestroy" )
+
 	array<string> mods = []
 
 	if ( inventoryItem.itemType == eInventoryItemType.burnmeter ) {
@@ -94,7 +107,6 @@ void function PlayerInventory_GiveInventoryItem( entity player, InventoryItem in
 
 	// ensure inventory slot isn't full to avoid crash
 	waitthread PlayerInventory_TakeInventoryItem( player )
-
 	entity preexistingWeapon = player.GetOffhandWeapon( OFFHAND_INVENTORY ) // defensive fix
 	if( IsValid( preexistingWeapon ) )
 		player.TakeWeaponNow( preexistingWeapon.GetWeaponClassName() )
