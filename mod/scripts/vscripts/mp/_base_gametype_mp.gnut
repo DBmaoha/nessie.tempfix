@@ -551,7 +551,7 @@ void function ForcedRespawnThink( entity player, float waitBeforeRespawn )
 				return 
 			if( IsValid( player ) )
 			{
-				if( expect bool( player.s.isForcedRespawn ) ) // reset player's presistent var if respawn is forced
+				if( expect bool( player.s.isForcedRespawn ) ) // reset player's persistent var if respawn is forced
 					player.SetPersistentVar( "spawnAsTitan", false )
 				player.Signal( "RespawnMe" )
 			}
