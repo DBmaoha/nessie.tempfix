@@ -199,25 +199,6 @@ void function CodeCallback_OnClientConnectionCompleted( entity player )
 				shouldDoLateSpawn = true
 			else if( !file.lateSpawnedPlayerUIDs.contains( player.GetUID() ) ) // avoid multiple late spawns by disconnecting
 				shouldDoLateSpawn = true
-			/*
-			float endTime
-			float gameTime
-			if ( IsRoundBased() )
-			{
-				endTime = expect float( GetServerVar( "roundEndTime" ) )
-				gameTime = GameMode_GetRoundTimeLimit( GAMETYPE ) * 60
-			}
-			else
-			{
-				endTime = expect float( GetServerVar( "gameEndTime" ) )
-				gameTime = float( GameMode_GetTimeLimit( GAMETYPE ) ) * 60
-			}
-			
-			else if( GetPlayerArrayOfTeam( player.GetTeam() ).len() > 1 )
-				shouldDoLateSpawn = false
-			else if( endTime - Time() < gameTime * 0.75 ) // early joiner can still be in elimination mode
-				shouldDoLateSpawn = false
-			*/
 
 			// do this so player don't have to wait so long till round end
 			if( shouldDoLateSpawn )
@@ -236,6 +217,8 @@ void function CodeCallback_OnClientConnectionCompleted( entity player )
 		if( connectingRespawned && GetGameState() == eGameState.Playing )
 			thread DelayedGamemodeAnnouncement( player )
 	}
+	else // respawn not valid, don't know why northstar not handling these
+		thread PlayerBecomesSpectator( player )
 }
 
 void function DelayedGamemodeAnnouncement( entity player )
@@ -282,7 +265,8 @@ void function CodeCallback_OnPlayerRespawned( entity player )
 	player.Signal( "OnRespawned" ) // kill any postdeaththreads that could be running
 	
 	Loadouts_TryGivePilotLoadout( player )
-	GracePeriodThink( player ) // grace period done here
+	if( IsLoadoutGracePeriodEnabled() )
+		GracePeriodThink( player ) // grace period done here
 	//player.SetPredictionEnabled( true ) doesn't seem needed, as native code seems to set this
 	
 	foreach ( entity weapon in player.GetMainWeapons() )
@@ -510,7 +494,8 @@ void function PostDeathThread_MP( entity player, var damageInfo ) // based on ga
 		else // spawn as pilot
 			RespawnAsPilot( player )
 	}
-	else if ( GamePlayingOrSuddenDeath() || GetGameState() == eGameState.Epilogue )
+	//else if ( GamePlayingOrSuddenDeath() || GetGameState() == eGameState.Epilogue )
+	else // respawn not valid, handling all situations
 	{
 		if ( shouldDoReplay && player.IsWatchingKillReplay() )
 			WaitSignal( player, "KillCamOver", "RespawnMe" ) // allows player to skip replay
@@ -526,6 +511,8 @@ void function SetPlayerCameraToIntermissionCam( entity player, float delay = 0 )
 		player.EndSignal( "OnDestroy" )
 		player.EndSignal( "OnDeath" )
 		player.EndSignal( "RespawnMe" )
+		player.EndSignal( "OnRespawned" )
+		player.EndSignal( "PlayerRespawnStarted" )
 		//print( "Waiting " + string( delay ) + " s before setting camera" )
 		wait delay
 	}
