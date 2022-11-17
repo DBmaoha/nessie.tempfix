@@ -36,6 +36,9 @@ void function Spectator_Init()
 	AddClientCommandCallback( "spec_next", ClientCommandCallback_spec_next )
 	AddClientCommandCallback( "spec_prev", ClientCommandCallback_spec_prev )
 	AddClientCommandCallback( "spec_mode", ClientCommandCallback_spec_mode )
+	
+	// modifed
+	RegisterSignal( "HACKSpectatorStart" )
 }
 
 void function SetStaticSpecCams()
@@ -93,6 +96,9 @@ void function RespawnPrivateMatchSpectator( entity player )
 
 void function PlayerBecomesSpectator( entity player )
 {
+	//if( IsAlive( player ) )
+	//	player.Die( player, player, { damageSourceId = damagedef_despawn } )
+
 	player.SetPlayerSettings( "spectator" ) // don't you think we should do this?
 	player.StopPhysics()
 
@@ -103,7 +109,9 @@ void function PlayerBecomesSpectator( entity player )
 	OnThreadEnd( function() : ( player ) 
 	{
 		if ( IsValid( player ) )
+		{
 			player.StopObserverMode()
+		}
 	})
 	
 	// keeps track of the most recent func this player has completed
