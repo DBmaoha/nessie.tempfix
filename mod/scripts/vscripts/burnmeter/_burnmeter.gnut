@@ -514,6 +514,7 @@ void function PlayerUsesPhaseRewindBurncardThreaded( entity player )
 		wait PHASE_REWIND_PATH_SNAPSHOT_INTERVAL
 	}
 	player.SetVelocity( <0, 0, 0> )
+	player.UnforceCrouch()
 	if( positions[0].wasCrouched )
 		thread PhaseRewindForceCrouch( player )
 	player.SetOrigin( positions[0].origin + < 0,0,20 > )

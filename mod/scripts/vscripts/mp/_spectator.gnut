@@ -36,9 +36,6 @@ void function Spectator_Init()
 	AddClientCommandCallback( "spec_next", ClientCommandCallback_spec_next )
 	AddClientCommandCallback( "spec_prev", ClientCommandCallback_spec_prev )
 	AddClientCommandCallback( "spec_mode", ClientCommandCallback_spec_mode )
-	
-	// modifed
-	RegisterSignal( "HACKSpectatorStart" )
 }
 
 void function SetStaticSpecCams()
