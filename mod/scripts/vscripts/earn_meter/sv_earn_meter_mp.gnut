@@ -59,10 +59,10 @@ void function SetupPlayerEarnMeter( entity player )
 void function DelayedCatchUpEarnMeter( entity player )
 {
 	WaitFrame()
-	if( IsValid( player ) && !catchedUpUIDs.contains( player.GetUID() ) )
+	if( IsValid( player ) && !file.catchedUpUIDs.contains( player.GetUID() ) )
 	{
 		PlayerEarnMeter_AddOwnedFrac( player, ( ( Time() - file.playingStartTime ) / file.passiveMeterGainInterval ) * 0.01 )
-		catchedUpUIDs.append( player.GetUID() ) // for northstar, only catch up earnmeters once
+		file.catchedUpUIDs.append( player.GetUID() ) // for northstar, only catch up earnmeters once
 	}
 }
 
