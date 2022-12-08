@@ -244,8 +244,11 @@ void function UpdateMarksForKill( entity victim, entity attacker, var damageInfo
 		entity friendlyMark = GetMarked( attacker.GetTeam() )
 		if( IsValid( friendlyMark ) )
 		{
-			if( Distance( friendlyMark, victim ) <= 750 ) // close enough! you saved the mark!
-				AddPlayerScore( attacker, "MarkedEscort" )
+			if( attacker != victim ) // prevent suicides
+			{
+				if( Distance( friendlyMark.GetOrigin(), victim.GetOrigin() ) <= 750 ) // close enough! you saved the mark!
+					AddPlayerScore( attacker, "MarkedEscort" )
+			}
 		}
 	}
 }
